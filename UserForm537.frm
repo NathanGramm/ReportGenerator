@@ -13,78 +13,16 @@ Attribute VB_GlobalNameSpace = False
 Attribute VB_Creatable = False
 Attribute VB_PredeclaredId = True
 Attribute VB_Exposed = False
+'====================================================================================
+'
+'Author: Nathan Gramm
+'Start Date: 6/23/2023
+'Latest Edit Date: 7/14/2023
+'For the data analysis reports of The Pennsylvania State University's IEE Department
+'
+'====================================================================================
+
 Private referenceWorkbookName, LCSLCSDWorkbookName As String
-
-
-Private Sub CommandButton2_Click()
-    Dim fd As Office.FileDialog
-
-    Set fd = Application.FileDialog(msoFileDialogFilePicker)
-
-    With fd
-
-      .AllowMultiSelect = False
-
-      ' Set the title of the dialog box.
-      .Title = "Please select the file."
-
-      ' Clear out the current filters, and add our own.
-      .Filters.Clear
-      .Filters.Add "Excel", "*.xlsx"
-      .Filters.Add "Excel, Macro-Enabled Workbook", "*.xlsm"
-      .Filters.Add "Excel 2003", "*.xls"
-      .Filters.Add "All Files", "*.*"
-
-      ' Show the dialog box. If the .Show method returns True, the
-      ' user picked at least one file. If the .Show method returns
-      ' False, the user clicked Cancel.
-      If .Show Then
-        LCSLCSDWorkbookTextBox = .SelectedItems(1)
-        LCSLCSDWorkbookName = .SelectedItems(1)
-      End If
-   End With
-End Sub
-
-Private Sub CommandButton1_Click()
-    Dim fd As Office.FileDialog
-
-    Set fd = Application.FileDialog(msoFileDialogFilePicker)
-
-    With fd
-
-      .AllowMultiSelect = False
-
-      ' Set the title of the dialog box.
-      .Title = "Please select the file."
-
-      ' Clear out the current filters, and add our own.
-      .Filters.Clear
-      .Filters.Add "Excel", "*.xlsx"
-      .Filters.Add "Excel, Macro-Enabled Workbook", "*.xlsm"
-      .Filters.Add "Excel 2003", "*.xls"
-      .Filters.Add "All Files", "*.*"
-
-      ' Show the dialog box. If the .Show method returns True, the
-      ' user picked at least one file. If the .Show method returns
-      ' False, the user clicked Cancel.
-      If .Show Then
-        ReferenceWorkbookTextBox = .SelectedItems(1)
-        referenceWorkbookName = .SelectedItems(1)
-      End If
-   End With
-End Sub
-
-Private Sub Cancel_Click()
-    Unload Me
-End Sub
-
-Private Sub ReferenceWorkbookTextBox_Change()
-    TextBoxsFilled
-End Sub
-
-Private Sub TextBoxsFilled()
-    GenerateReport.Enabled = Len(ReferenceWorkbookTextBox.Text) > 0
-End Sub
 
 Private Sub UserForm_Initialize()
     With MatrixComboBox
@@ -93,26 +31,65 @@ Private Sub UserForm_Initialize()
         .AddItem ("Sediment")
         .AddItem ("Tissue")
     End With
-        SampleLabel.Visible = False
-        SampleTextBox.Visible = False
+    SampleLabel.Visible = False
+    SampleTextBox.Visible = False
+End Sub
+
+Private Sub Cancel_Click()
+    Unload Me
+End Sub
+
+Private Sub SelectFile(ByRef WorkbookName, Optional ByRef DisplayTextBox)
+    With Application.FileDialog(msoFileDialogFilePicker)
+      
+      .AllowMultiSelect = False
+
+      ' Set the title of the dialog box.
+      .Title = "Please select the file."
+
+      ' Clear out the current filters, and add our own.
+      .Filters.Clear
+      .Filters.Add "Excel", "*.xlsx"
+      .Filters.Add "All Files", "*.*"
+
+      ' Show the dialog box. If the .Show method returns True, the
+      ' user picked at least one file. If the .Show method returns
+      ' False, the user clicked Cancel.
+      If .Show Then
+        WorkbookName = .SelectedItems(1)
+        If Not IsMissing(DisplayTextBox) Then DisplayTextBox.Value = .SelectedItems(1)
+      End If
+   End With
+End Sub
+
+Private Sub SelectLCSLCSDFileButton_Click()
+    Call SelectFile(LCSLCSDWorkbookName, LCSLCSDWorkbookTextBox)
+End Sub
+
+Private Sub SelectReferenceFileButton_Click()
+    Call SelectFile(referenceWorkbookName, ReferenceWorkbookTextBox)
+End Sub
+
+Private Sub ReferenceWorkbookTextBox_Change()
+    Call TextBoxsFilled
+End Sub
+
+Private Sub TextBoxsFilled()
+    GenerateReport.Enabled = Len(ReferenceWorkbookTextBox.Text) > 0
 End Sub
 
 Private Sub MatrixComboBox_Change()
-    If MatrixComboBox.Value = "Water" Then
+    Dim MatrixComboBoxValue As String
+    MatrixComboBoxValue = MatrixComboBox.Value
+    'Changes the text an visibility of the sample quantity label and textbox based on which matrix is selected
+    SampleLabel.Visible = True
+    SampleTextBox.Visible = True
+    If MatrixComboBoxValue = "Water" Then
         SampleLabel.Caption = "Sample Volume (mL)"
-        SampleTextBox.Enabled = True
-        SampleLabel.Visible = True
-        SampleTextBox.Visible = True
-    ElseIf MatrixComboBox.Value = "POCIS" Then
+    ElseIf MatrixComboBoxValue = "POCIS" Then
         SampleLabel.Caption = "Sorbent Weight (g)"
-        SampleTextBox.Enabled = True
-        SampleLabel.Visible = True
-        SampleTextBox.Visible = True
-    ElseIf MatrixComboBox.Value = "Sediment" Or MatrixComboBox.Value = "Tissue" Then
+    ElseIf MatrixComboBoxValue = "Sediment" Or MatrixComboBoxValue = "Tissue" Then
         SampleLabel.Caption = "Sample Weight (g)"
-        SampleTextBox.Enabled = True
-        SampleLabel.Visible = True
-        SampleTextBox.Visible = True
     Else
         SampleLabel.Visible = False
         SampleTextBox.Visible = False
@@ -120,11 +97,6 @@ Private Sub MatrixComboBox_Change()
 End Sub
 
 Private Sub GenerateReport_Click()
-    'Author: Nathan Gramm
-    'Start Date: 6/23/2023
-    'Latest Edit Date: 7/14/2023
-    'For the data analysis reports of The Pennsylvania State University's IEE Department
-    
     '==================  Initial Workbook Setup  ===================
     'Set the current workbook to our control file
     Dim controlFile As Workbook
@@ -137,36 +109,20 @@ Private Sub GenerateReport_Click()
     sheetName = Replace(Replace(Replace(Replace(Replace(Replace(Replace(SearchParameterTextBox.Text, ":", ""), "\", "."), "/", "."), "?", ""), "*", ""), "[", ""), "]", "")
 
     controlFile.Activate
-    Dim ws As Worksheet, foundEmptyWorksheet, deleteCoverPage, deleteDisclaimer, foundDuplicateReport As Boolean
-    'Loop through all worksheets in the workbook and save whether files need to be replaced
-'    Loop through all worksheets
-'       If there is one named Cover Page then change bool
-'       If there is one named Glossary then change bool
-'       If there is one named SheetName + Report then change bool
-'       If there is one named Calibration Solutions then change bool
-'       If there is one named LCSLCSD Report then change bool
-'       If there is an empty sheet save that index to an array
-'    Finish Loop
-'
-'   If index array > 4 then delete any worksheet after 4
-'
-'   If Cover Page is found then delete if not the only one
-'       If it is the only one then rename found sheet to NULL,
-'       Check if first index of empty sheet array exists if so use that sheet
-'           If not Add a new sheet before Null and name it coverpage
-'       Delete Null
-
-    For i = 1 To controlFile.Worksheets.Count
-        Set ws = controlFile.Worksheets(i)
+    Dim ws As Worksheet, foundEmptyWorksheet, foundCoverPage, foundGlossary, foundDuplicateReport, foundCalibrationSolutions, foundLCSLCSD As Boolean
+    For Each ws In controlFile.Worksheets
         If ws.Name = "Cover Page" Then
-            deleteCoverPage = True
-        End If
-        If ws.Name = "Glossary" Then
-            deleteDisclaimer = True
-        End If
-        If ws.Name = sheetName + " Report" Then
+            foundCoverPage = True
+        ElseIf ws.Name = "Glossary" Then
+            foundGlossary = True
+        ElseIf ws.Name = sheetName + " Report" Then
             foundDuplicateReport = True
-        ElseIf ws.UsedRange.Address = "$A$1" And ws.Range("A1") = "" And ws.Name <> "Cover Page" And ws.Name <> "Glossary" Then
+        ElseIf ws.Name = "Calibration Solutions" Then
+            foundCalibrationSolutions = True
+        ElseIf ws.Name = "LCSLCSD " + sheetName + " Report" Then
+            foundLCSLCSD = True
+        End If
+        If ws.UsedRange.Address = "$A$1" And ws.Range("A1") = "" And ws.Name <> "Cover Page" And ws.Name <> "Glossary" Then
             foundEmptyWorksheet = True
             For j = 1 To controlFile.Worksheets.Count
                 If controlFile.Worksheets(j).Name = sheetName + " Report" Then
@@ -179,20 +135,23 @@ Private Sub GenerateReport_Click()
             Else
                 foundEmptyWorksheet = False
             End If
-            Exit For
         End If
-    Next i
+    Next ws
     'If we found a sheet with the same name then handle it
     If foundDuplicateReport Then
+        'If the duplicate report is the only file in the workbook we cannot delete it so we rename the report sheet, add a new sheet,
+        'rename it the report's name, then delete the old sheet
         If controlFile.Worksheets.Count = 1 Then
-            Dim tempSheet As Worksheet
             controlFile.Worksheets(sheetName + " Report").Name = "Null"
             Sheets.Add.Name = sheetName + " Report"
             Application.DisplayAlerts = False
             controlFile.Worksheets("Null").Delete
             Application.DisplayAlerts = True
+            
+            'Since we created a new worksheet to avoid having no worksheet in the workbook, we set the boolean to true
             foundEmptyWorksheet = True
         Else
+            'Otherwise we just delete the report with the same name as the report we want to add
             Application.DisplayAlerts = False
             controlFile.Worksheets(sheetName + " Report").Delete
             Application.DisplayAlerts = True
@@ -200,22 +159,34 @@ Private Sub GenerateReport_Click()
     End If
     'If we never found a sheet that could be used as our report sheet make one
     If Not foundEmptyWorksheet Then
-        Sheets.Add After:=controlFile.Worksheets(controlFile.Worksheets.Count)
-        controlFile.Worksheets(controlFile.Worksheets.Count).Name = sheetName + " Report"
+        If foundCalibrationSolutions Then
+            Sheets.Add(Before:=controlFile.Worksheets("Calibration Solutions")).Name = sheetName + " Report"
+        Else
+            Sheets.Add(Before:=controlFile.Worksheets(controlFile.Worksheets.Count)).Name = sheetName + " Report"
+        End If
     End If
-    'If we needed to remake the cover page, delete it then add a new one
-    If deleteCoverPage Then
-        Application.DisplayAlerts = False
-        controlFile.Worksheets("Cover Page").Delete
-        Application.DisplayAlerts = True
-    End If
-    If deleteDisclaimer Then
-        Application.DisplayAlerts = False
-        controlFile.Worksheets("Glossary").Delete
-        Application.DisplayAlerts = True
-    End If
+    
+    'Need to turn of Display Alerts so if we delete a worksheet no popup occurs
+    Application.DisplayAlerts = False
+    
+    'If we needed to remake the Cover Page sheet, delete it then add a new one
+    If foundCoverPage Then controlFile.Worksheets("Cover Page").Delete
     Sheets.Add(Before:=controlFile.Worksheets(1)).Name = "Cover Page"
+    
+    'If we needed to remake the Glossary sheet, delete it then add a new one
+    If foundGlossary Then controlFile.Worksheets("Glossary").Delete
     Sheets.Add(After:=controlFile.Worksheets("Cover Page")).Name = "Glossary"
+    
+    'If we needed to remake the Calibration Solutions sheet, delete it then add a new one
+    If foundGlossary Then controlFile.Worksheets("Calibration Solutions").Delete
+    Sheets.Add(After:=controlFile.Worksheets(sheetName + " Report")).Name = "Calibration Solutions"
+    
+    'If we needed to remake the LCSLCSD Report sheet, delete it then add a new one
+    If foundLCSLCSD Then controlFile.Worksheets("LCSLCSD " + sheetName + " Report").Delete
+    If Len(LCSLCSDWorkbookName) > 0 Then Sheets.Add(After:=controlFile.Worksheets(controlFile.Worksheets.Count)).Name = "LCSLCSD " + sheetName + " Report"
+    
+    'Turn back on Display Alerts
+    Application.DisplayAlerts = True
     '==============  End of Initial Workbook Setup  ================
     
     
@@ -230,7 +201,7 @@ Private Sub GenerateReport_Click()
         .TopLeftCell = controlFile.Worksheets("Cover Page").Cells(1, 1)
     End With
     
-    'Top Cover Page TextBox
+    'Cover Page TextBoxes
     Dim TextBoxPositionList As Variant, TextBoxPosition As Variant
     TextBoxPositionList = Array("B14", "B36")
     For Each TextBoxPosition In TextBoxPositionList
@@ -327,7 +298,6 @@ Private Sub GenerateReport_Click()
     '==================  End Glossary Management  ==================
     
     
-    
     '===================  Report File Management  ==================
     With controlFile.Worksheets(sheetName + " Report")
         'Header Initialization
@@ -409,23 +379,31 @@ Private Sub GenerateReport_Click()
     
         'Open the reference Workbook
         If Len(referenceWorkbookName) > 0 Then
-            Dim ReferenceFile As Workbook
-            Set ReferenceFile = Workbooks.Open(referenceWorkbookName)
+            Dim ReferenceFile, wb As Workbook, referenceFileAlreadyOpen, referenceFileProtected As Boolean
+            referenceFileAlreadyOpen = False
+            For Each wb In Workbooks
+                If wb.Path = referenceWorkbookName Then
+                    ReferenceFile = wb
+                    referenceFileAlreadyOpen = True
+                    Exit For
+                End If
+            Next wb
+            If ReferenceFile = Empty Then Set ReferenceFile = Workbooks.Open(referenceWorkbookName)
         
-            'Reset the analyteList to match the file output in the autogenerated data report
+            'Reset the analyteList to match the file output in the LCMS data report
             analyteList = Array("11Cl-PF3OUds", "9Cl-PF3ONS", "ADONA", "HFPO-DA", "N-EtFOSAA", "N-MeFOSAA", "PFBA", "PFBS", "PFDA", "PFDoA", "PFHpA", "PFHxA", "PFHxS", "PFNA", "PFOA", "PFOS", "PFPeA", "PFTeDA", "PFTrDA", "PFUdA")
             'Start the loop through the reference file sheets
-            For i = 1 To ReferenceFile.Worksheets.Count
+            For Each ws In ReferenceFile.Worksheets
                 analyteNameList = Array(analyteListLength)
                 analyteConcentrationList = Array(analyteListLength)
-                If InStr(1, ReferenceFile.Worksheets(i).Range("I9").Value, SearchParameterTextBox.Text) > 0 Then
+                If InStr(1, ws.Range("I9").Value, SearchParameterTextBox.Text) > 0 Then
                     .Cells(analyteListStartingRow - 1, currentSampleCellColumn).Borders(xlEdgeBottom).LineStyle = xlDouble
                     .Columns(currentSampleCellColumn).ColumnWidth = 16
-                    .Cells(analyteListStartingRow - 1, currentSampleCellColumn).Value = ReferenceFile.Worksheets(i).Range("I9").Value
+                    .Cells(analyteListStartingRow - 1, currentSampleCellColumn).Value = ws.Range("I9").Value
                     Dim rowNum As Long
                     For counter = 0 To analyteListLength - 1
-                        rowNum = ReferenceFile.Worksheets(i).Columns(1).Find(What:=analyteList(counter), LookIn:=xlValues, LookAt:=xlWhole).Row
-                        .Cells(analyteListStartingRow + counter, currentSampleCellColumn).Value = IIf(ReferenceFile.Worksheets(i).Cells(rowNum, 13) = "N/F" Or ReferenceFile.Worksheets(i).Cells(rowNum, 13) = "N/A" Or ReferenceFile.Worksheets(i).Cells(rowNum, 13) = "-", "ND", ReferenceFile.Worksheets(i).Cells(rowNum, 13))
+                        rowNum = ws.Columns(1).Find(What:=analyteList(counter), LookIn:=xlValues, LookAt:=xlWhole).Row
+                        .Cells(analyteListStartingRow + counter, currentSampleCellColumn).Value = IIf(ws.Cells(rowNum, 13) = "N/F" Or ws.Cells(rowNum, 13) = "N/A" Or ws.Cells(rowNum, 13) = "-", "ND", ws.Cells(rowNum, 13))
                         .Cells(analyteListStartingRow + counter, currentSampleCellColumn).HorizontalAlignment = xlCenter
                         .Cells(analyteListStartingRow + counter, currentSampleCellColumn).VerticalAlignment = xlCenter
                         .Cells(analyteListStartingRow + counter, currentSampleCellColumn).Borders(xlEdgeRight).LineStyle = XlLineStyle.xlContinuous
@@ -435,35 +413,14 @@ Private Sub GenerateReport_Click()
                     Next counter
                     currentSampleCellColumn = currentSampleCellColumn + 1
                 End If
-            Next i
-            ReferenceFile.Close SaveChanges:=False
+            Next ws
+            If Not referenceFileAlreadyOpen Then ReferenceFile.Close SaveChanges:=False
         End If
-        
     End With
     '===============  End of Report File Management  ===============
         
         
     '===============  Calibration Solution Worksheet  ==============
-    Dim currentWS As Worksheet, AddedSheet As Boolean
-    AddedSheet = False
-    For Each currentWS In controlFile.Worksheets
-        If currentWS.Name = "Calibration Solutions" Then
-            currentWS.Name = "NULL"
-            Sheets.Add After:=controlFile.Worksheets(sheetName + " Report")
-            ActiveSheet.Name = "Calibration Solutions"
-            Application.DisplayAlerts = False
-            currentWS.Delete
-            Application.DisplayAlerts = True
-            AddedSheet = True
-            ActiveSheet.Name = "Calibration Solutions"
-            Exit For
-        End If
-    Next currentWS
-    If Not AddedSheet Then
-        Sheets.Add After:=controlFile.Worksheets(sheetName + " Report")
-        ActiveSheet.Name = "Calibration Solutions"
-    End If
-              
     With controlFile.Worksheets("Calibration Solutions")
         'Header Initialization
         With .PageSetup
@@ -523,84 +480,62 @@ Private Sub GenerateReport_Click()
                 .Cells(Rw + 1, Col + 1).BorderAround LineStyle:=XlLineStyle.xlContinuous
             Next Col
         Next Rw
-        .Columns("A").ColumnWidth = 17.89
-        .Columns("B:C").AutoFit
+        .Columns("A:C").AutoFit
     End With
     '===========  End of Calibration Solution Worksheet  ===========
     
     
     '==================  LCSLCSDFile Management  ===================
     If Len(LCSLCSDWorkbookName) > 0 Then
-        Dim LCSLCSDFile As Workbook
-        Set LCSLCSDFile = Workbooks.Open(LCSLCSDWorkbookName)
-        controlFile.Activate
-        AddedSheet = False
-        For Each currentWS In controlFile.Worksheets
-            If currentWS.Name = LCSLCSDFile.Worksheets(1).Name Or currentWS.Name = "LCSLCSD Report" Then
-                currentWS.Name = "NULL"
-                Sheets.Add After:=controlFile.Worksheets(controlFile.Worksheets.Count)
-                Application.DisplayAlerts = False
-                currentWS.Delete
-                Application.DisplayAlerts = True
-                AddedSheet = True
-                ActiveSheet.Name = "LCSLCSD Report"
-                Exit For
-            End If
-        Next currentWS
-        If Not AddedSheet Then
-            Sheets.Add After:=controlFile.Worksheets(controlFile.Worksheets.Count)
-            ActiveSheet.Name = "LCSLCSD Report"
-        End If
-    Else
-        For Each currentWS In controlFile.Worksheets
-            If currentWS.Name = "LCSLCSD Report" Then
-                If controlFile.Worksheets.Count = 1 Then
-                    Sheets.Add
+        Dim LCSLCSDFile, LCSLCSDFileAlreadyOpen, LCSLCSDFileProtected As Boolean
+            LCSLCSDFileAlreadyOpen = False
+            LCSLCSDFileProtected = False
+            For Each wb In Workbooks
+                If wb.Path = LCSLCSDWorkbookName Then
+                    LCSLCSDFile = wb
+                    LCSLCSDFileAlreadyOpen = True
+                    Exit For
                 End If
-                Application.DisplayAlerts = False
-                currentWS.Delete
-                Application.DisplayAlerts = True
-            End If
-        Next currentWS
-    End If
-    
-    With controlFile.Worksheets("LCSLCSD Report")
-        'Header Initialization
-        With .PageSetup
-            .CenterHeader = "&G"
-            .CenterFooter = "&G"
-            With .CenterHeaderPicture
-                .Filename = AddIns("Report Generator").Path & "\Images\ReportHeader.png"
-                .Height = .Height * 0.95
-                .Width = .Width * 0.95
-            End With
-            With .CenterFooterPicture
-                .Filename = AddIns("Report Generator").Path & "\Images\ReportFooter.png"
-                .Height = .Height * 0.95
-                .Width = .Width * 0.95
-            End With
-            .RightHeader = "Lab ID: " & LabIDTextBox.Text & vbCrLf & vbCrLf & vbCrLf
-        End With
+            Next wb
+            If LCSLCSDFile = Empty Then Set LCSLCSDFile = Workbooks.Open(LCSLCSDWorkbookName)
         
-        .Range(.Cells(1, 1), .Cells(1, 13)).Merge Across:=False
-        .Range(.Cells(1, 1), .Cells(1, 13)).Borders(xlEdgeBottom).LineStyle = xlDouble
-        .Cells(1, 1).Value = "LCS LCSD Report"
-        .Cells(1, 1).Font.Size = 18
-        .Cells(1, 1).Font.Bold = True
-        .Cells(1, 1).HorizontalAlignment = xlCenter
-        analyteListStartingRow = 13
-        For Rw = 0 To analyteListLength
-            For Col = 0 To 12
-                .Cells(2 + Rw, Col + 1).Value = LCSLCSDFile.Worksheets(1).Cells(analyteListStartingRow + Rw, Col + 1).Value
-                If Rw = 0 Then
-                    .Cells(2 + Rw, Col + 1).Font.Bold = True
-                    .Cells(2 + Rw, Col + 1).Borders(xlEdgeBottom).LineStyle = xlContinuous
-                    .Columns(Col + 1).AutoFit
-                End If
-            Next Col
-        Next Rw
-    End With
-    LCSLCSDFile.Close SaveChanges:=False
+        With controlFile.Worksheets("LCSLCSD " + sheetName + " Report")
+            'Header Initialization
+            With .PageSetup
+                .CenterHeader = "&G"
+                .CenterFooter = "&G"
+                With .CenterHeaderPicture
+                    .Filename = AddIns("Report Generator").Path & "\Images\ReportHeader.png"
+                    .Height = .Height * 0.95
+                    .Width = .Width * 0.95
+                End With
+                With .CenterFooterPicture
+                    .Filename = AddIns("Report Generator").Path & "\Images\ReportFooter.png"
+                    .Height = .Height * 0.95
+                    .Width = .Width * 0.95
+                End With
+                .RightHeader = "Lab ID: " & LabIDTextBox.Text & vbCrLf & vbCrLf & vbCrLf
+            End With
+            .Range(.Cells(1, 1), .Cells(1, 13)).Merge Across:=False
+            .Range(.Cells(1, 1), .Cells(1, 13)).Borders(xlEdgeBottom).LineStyle = xlDouble
+            .Cells(1, 1).Value = "LCS LCSD Report"
+            .Cells(1, 1).Font.Size = 18
+            .Cells(1, 1).Font.Bold = True
+            .Cells(1, 1).HorizontalAlignment = xlCenter
+            analyteListStartingRow = 13
+            For Rw = 0 To analyteListLength
+                For Col = 0 To 12
+                    .Cells(2 + Rw, Col + 1).Value = LCSLCSDFile.Worksheets(1).Cells(analyteListStartingRow + Rw, Col + 1).Value
+                    If Rw = 0 Then
+                        .Cells(2 + Rw, Col + 1).Font.Bold = True
+                        .Cells(2 + Rw, Col + 1).Borders(xlEdgeBottom).LineStyle = xlContinuous
+                        .Columns(Col + 1).AutoFit
+                    End If
+                Next Col
+            Next Rw
+        End With
+        If Not LCSLCSDFileAlreadyOpen Then LCSLCSDFile.Close SaveChanges:=False
+    End If
     '================ End of LCSLCSDFile Management ================
     
     
@@ -623,7 +558,7 @@ Private Sub GenerateReport_Click()
                 .CenterHorizontally = True
                 .HeaderMargin = Application.InchesToPoints(0.3)
                 .FooterMargin = Application.InchesToPoints(0.3)
-            ElseIf ws.Name = "LCSLCSD Report" Or ws.Name = "Glossary" Or ws.Name = "Calibration Solutions" Then
+            ElseIf ws.Name = "LCSLCSD " + sheetName + " Report" Or ws.Name = "Glossary" Or ws.Name = "Calibration Solutions" Then
                 .ScaleWithDocHeaderFooter = False
                 .CenterHorizontally = True
                 .TopMargin = Application.InchesToPoints(2.15)
@@ -651,3 +586,5 @@ Private Sub GenerateReport_Click()
     Unload Me
     
 End Sub
+
+
